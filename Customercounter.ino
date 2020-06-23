@@ -1,57 +1,84 @@
+#include <NewPing.h>
 
-#include "AsyncSonarLib.h"
-//Library allows ping sensors to require only arduino 1 pin for use;
-//It also allows for Asynchronous function, allowing all sensors to continue to be checked while Counter calculations take place
+/*  Customer Counter Conecpt
+ * Use four ping sensors to monitor customers entering or exiting premises.
+ * Using two on each door can allow for determining the direction of travel based on the order they are triggered;
+ * which will allow for the capture of those leaving via the wrong door.
+ * The triggering of the sensors will result in a customer counter being increased or decreased.
+ * At the end of a loop thisvalue will be checkedand used to toggle a pin (or a number of pins) high/low.
+ * This pin can then be used to switch a relay on/off to use lights or other measures to indicate the premises is at capacity.
+ * Future update will implement an RFID reader. This will allow staff members to scan a card before passing the sensor and not affect the customer total
+ */
+
+#define SONAR_NUM 4             // Number of sensors in use
+#define MAX_DISTANCE 200        // Max Distance. Use this to set the width of monitored doorways; create more if doors different
+#define OVER_CAPACITY 0        // Pin for relay- to be turned high if premises at capacity
+#define UNDER_CAPACITY 1       // Pin for relay- to be turned high if premises under capacity
 
 int custCount;
 int custMax;
-void PingRecieved(AsyncSonar&);
-void TimeOut0(AsyncSonar&);
-void TimeOut1(AsyncSonar&);
-void TimeOut3(AsyncSonar&);
-void TimeOut4(AsyncSonar&);
+boolean custEntering;
+boolean custLeaving;
 
-AsyncSonar InA(A0, PingRecieved, TimeOut);
-AsyncSonar InB(A1, PingRecieved, TimeOut);
-AsyncSonar OutA(A2, PingRecieved, TimeOut);
-AsyncSonar OutB(A3, PingRecieved, TimeOut);
+NewPing sonar[SONAR_NUM] = {    // Sensor object array.
+  NewPing(4, 5, MAX_DISTANCE),   
+  NewPing(6, 7, MAX_DISTANCE), 
+  NewPing(8, 9, MAX_DISTANCE),
+  NewPing(10,11, MAX_DISTANCE)
+};
 
-// ping complete callback
-
-void PingRecieved(AsyncSonar& sonar)
-{
-  //Add in values to track which sensor triggered.
-  // If 0 triggered then 1, then cutomer has entered/exited
-  //At the moment it just returns the measurement
-  Serial.print("Ping");
-  Serial.print(&sonar);
-  Serial.print(": ");
-  Serial.println(sonar.GetMeasureMM());
-}
-
-// timeout callback
-void TimeOut(AsyncSonar& sonar)
-{
-  Serial.println("TimeOut");
-}
-
-void setup()
-{
+void setup() {
   Serial.begin(115200);
-
+  
+  pinMode(OVER_CAPACITY, OUTPUT);
+  pinMode(UNDER_CAPACITY, OUTPUT);
+  digitalWrite(OVER_CAPACITY, LOW);
+  digitalWrite(UNDER_CAPACITY, LOW);
+  
   custMax = 10;
   custCount = 0;
-
-  InA.Start(500); 
-  InB.Start(500); 
-  OutA.Start(500);
-  OutB.Start(500);
+  custEntering = false;
+  custLeaving = false;
 }
 
-void loop()
-{
-  InA.Update(&InB);
-  InB.Update(&OutA);
-  OutA.Update(&OutB);
-  OutB.Update(&InA);
+void loop() { 
+  for (uint8_t i = 0; i < SONAR_NUM; i++) { // Loop through each sensor and display results.
+    delay(50); // Wait 50ms between pings (about 20 pings/sec). 29ms should be the shortest delay between pings.
+    Serial.print(i);
+    Serial.print("=");
+    Serial.print(sonar[i].ping_cm());
+    Serial.print("cm ");
+    if(sonar[i].ping_cm()<MAX_DISTANCE)
+    {
+      //Triggered - sonar[0] and sonar[1] for entrance, sonar[2] and sonar[3] for exit.
+      //Ignore [0] and [2] for now - these will be used to trigger custEntering custLeaving variables.
+      //These variables can then be checked before changing the custCount
+      if(i == 1)
+      {
+        custCount++;
+      }
+      if (i ==3)
+      {
+        custCount--;
+      }      
+    }
+  }
+  Serial.println();
+  CapacityCheck();
+}
+
+void CapacityCheck(){
+ if(custCount < custMax)
+ {
+  //All good
+  digitalWrite(OVER_CAPACITY, HIGH);
+  digitalWrite(UNDER_CAPACITY, LOW);
+ }
+ else
+ {
+  //At capacity
+  Serial.println("MAX CAPACITY REACHED");
+  digitalWrite(OVER_CAPACITY, LOW);
+  digitalWrite(UNDER_CAPACITY, HIGH); 
+ }
 }
