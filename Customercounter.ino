@@ -51,15 +51,44 @@ void loop() {
     if(sonar[i].ping_cm()<MAX_DISTANCE)
     {
       //Triggered - sonar[0] and sonar[1] for entrance, sonar[2] and sonar[3] for exit.
-      //Ignore [0] and [2] for now - these will be used to trigger custEntering custLeaving variables.
-      //These variables can then be checked before changing the custCount
-      if(i == 1)
+      //[1] and [3] will act as the main sensors for each door and run the logic required to change the cuntomer counts.
+      //[0] and [2] are placed after the main sensors, and can be used to determine if a patron is heading the wrong way.
+      //If these secondary ones are triggered before the main sensor then it signals the customer has gone the wrong way, and will adjust the
+      //counter accordingly.
+      
+      if (i == 0)
       {
-        custCount++;
+        custEntering = true;
+      }
+      if (i == 2)
+      {
+        custLeaving = true;
+      }
+      if (i == 1)
+      {
+        if (custEntering == true) 
+        {
+          //customer entering
+          custCount++;
+        }
+        else
+        {
+          custCount--;
+        }
+        custEntering = false;      
       }
       if (i ==3)
       {
-        custCount--;
+        if (custLeaving == true) 
+        {
+          //customer leaving
+          custCount--;
+        }
+        else
+        {
+          custCount++;
+        }
+        custLeaving = false;
       }      
     }
   }
