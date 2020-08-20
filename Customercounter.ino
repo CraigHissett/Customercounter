@@ -11,9 +11,9 @@
  */
 
 #define SONAR_NUM 4             // Number of sensors in use
-#define MAX_DISTANCE 200        // Max Distance. Use this to set the width of monitored doorways; create more if doors different
-#define OVER_CAPACITY 0        // Pin for relay- to be turned high if premises at capacity
-#define UNDER_CAPACITY 1       // Pin for relay- to be turned high if premises under capacity
+#define MAX_DISTANCE 25        // Max Distance. Use this to set the width of monitored doorways; create more if doors different
+#define OVER_CAPACITY 4        // Pin for relay- to be turned high if premises at capacity
+#define UNDER_CAPACITY 5       // Pin for relay- to be turned high if premises under capacity
 
 int custCount;
 int custMax;
@@ -21,10 +21,10 @@ boolean custEntering;
 boolean custLeaving;
 
 NewPing sonar[SONAR_NUM] = {    // Sensor object array.
-  NewPing(4, 5, MAX_DISTANCE),   
-  NewPing(6, 7, MAX_DISTANCE), 
-  NewPing(8, 9, MAX_DISTANCE),
-  NewPing(10,11, MAX_DISTANCE)
+  NewPing(10, 11, MAX_DISTANCE),
+  NewPing(6, 7, MAX_DISTANCE),   
+  NewPing(12,13, MAX_DISTANCE),
+  NewPing(8, 9, MAX_DISTANCE)
 };
 
 void setup() {
@@ -35,7 +35,7 @@ void setup() {
   digitalWrite(OVER_CAPACITY, LOW);
   digitalWrite(UNDER_CAPACITY, LOW);
   
-  custMax = 10;
+  custMax = 50;
   custCount = 0;
   custEntering = false;
   custLeaving = false;
@@ -48,7 +48,7 @@ void loop() {
     Serial.print("=");
     Serial.print(sonar[i].ping_cm());
     Serial.print("cm ");
-    if(sonar[i].ping_cm()<MAX_DISTANCE)
+    if(sonar[i].ping_cm()<MAX_DISTANCE && sonar[i].ping_cm()>0)
     {
       //Triggered - sonar[0] and sonar[1] for entrance, sonar[2] and sonar[3] for exit.
       //[1] and [3] will act as the main sensors for each door and run the logic required to change the cuntomer counts.
@@ -66,9 +66,11 @@ void loop() {
       }
       if (i == 1)
       {
+        custEntering = true;
         if (custEntering == true) 
         {
           //customer entering
+          Serial.println("Customer in");
           custCount++;
         }
         else
@@ -79,10 +81,12 @@ void loop() {
       }
       if (i ==3)
       {
+        custLeaving = true;
         if (custLeaving == true) 
         {
           //customer leaving
           custCount--;
+          Serial.println("Customer out");
         }
         else
         {
@@ -97,6 +101,7 @@ void loop() {
 }
 
 void CapacityCheck(){
+  Serial.println(custCount);
  if(custCount < custMax)
  {
   //All good
@@ -110,4 +115,5 @@ void CapacityCheck(){
   digitalWrite(OVER_CAPACITY, LOW);
   digitalWrite(UNDER_CAPACITY, HIGH); 
  }
+ delay(1000);
 }
